@@ -14,6 +14,8 @@ The application will be providing a TV remote / gamepad friendly UI, and
 low latency video / audio output, as well as generic mouse / keyboard /
 gamepad support.
 
+I helped.
+
 ---
 
 ![Home UI](https://user-images.githubusercontent.com/830358/219081008-e5eb646a-76fa-4683-9869-35e3923618ce.png)
