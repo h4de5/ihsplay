@@ -13,6 +13,9 @@
 #include "logging.h"
 #include "config.h"
 
+/** Timeout in milliseconds before a connection attempt is aborted. */
+#define SESSION_CONNECT_TIMEOUT_MS 15000
+
 typedef struct session_fragment_t {
     lv_fragment_t base;
     app_t *app;
@@ -27,6 +30,8 @@ typedef struct session_fragment_t {
 
     lv_obj_t *overlay_hint;
     lv_obj_t *overlay_progress;
+
+    SDL_TimerID connect_timeout_timer;
 
     struct {
         lv_style_t overlay;
@@ -87,6 +92,12 @@ static void session_cursor_image(IHS_Session *session, const IHS_StreamInputCurs
 static const cursor_t *session_current_cursor(session_fragment_t *fragment);
 
 static void disconnected_dialog_cb(lv_event_t *e);
+
+static void session_cancel_connecting(session_fragment_t *fragment);
+
+static Uint32 connect_timeout_callback(Uint32 interval, void *param);
+
+static void connect_timeout_main(app_t *app, void *context);
 
 static void screen_clicked_cb(lv_event_t *e);
 
@@ -183,8 +194,11 @@ static void obj_created(lv_fragment_t *self, lv_obj_t *obj) {
 
     stream_manager_t *stream_manager = fragment->app->stream_manager;
     stream_manager_register_listener(stream_manager, &stream_manager_listener, fragment);
+    fragment->connect_timeout_timer = 0;
     if (fragment->args.session.sessionKeyLen > 0) {
         stream_manager_start_session(stream_manager, &fragment->args.session);
+        fragment->connect_timeout_timer = SDL_AddTimer(SESSION_CONNECT_TIMEOUT_MS,
+                                                       connect_timeout_callback, fragment);
     }
 
     app_ui_set_ignore_keys(fragment->app->ui, true);
@@ -196,6 +210,11 @@ static void obj_will_delete(lv_fragment_t *self, lv_obj_t *obj) {
     LV_UNUSED(obj);
     session_fragment_t *fragment = (session_fragment_t *) self;
     app_ui_set_ignore_keys(fragment->app->ui, false);
+
+    if (fragment->connect_timeout_timer != 0) {
+        SDL_RemoveTimer(fragment->connect_timeout_timer);
+        fragment->connect_timeout_timer = 0;
+    }
 
     stream_manager_unregister_listener(fragment->app->stream_manager, &stream_manager_listener);
 
@@ -220,6 +239,11 @@ static bool event_cb(lv_fragment_t *self, int code, void *userdata) {
                 stream_manager_set_overlay_opened(stream_manager, false);
                 return true;
             }
+            // Allow cancellation while still connecting (server timeout / busy).
+            if (!stream_manager_is_active(stream_manager)) {
+                session_cancel_connecting(fragment);
+                return true;
+            }
             return false;
         }
         case APP_UI_NAV_QUIT: {
@@ -234,6 +258,12 @@ static bool event_cb(lv_fragment_t *self, int code, void *userdata) {
 static void session_connected_main(const IHS_SessionInfo *info, void *context) {
     LV_UNUSED(info);
     session_fragment_t *fragment = (session_fragment_t *) context;
+
+    // Connection succeeded — cancel the timeout timer.
+    if (fragment->connect_timeout_timer != 0) {
+        SDL_RemoveTimer(fragment->connect_timeout_timer);
+        fragment->connect_timeout_timer = 0;
+    }
 
     if (fragment->overlay != NULL) {
         lv_fragment_manager_remove(fragment->base.child_manager, fragment->overlay);
@@ -337,6 +367,43 @@ static void session_cursor_image(IHS_Session *session, const IHS_StreamInputCurs
     if (fragment->cursor_visible && fragment->cursor_id == cursor->id) {
         SDL_SetCursor(cursor->cursor);
     }
+}
+
+static void session_cancel_connecting(session_fragment_t *fragment) {
+    if (fragment->connect_timeout_timer != 0) {
+        SDL_RemoveTimer(fragment->connect_timeout_timer);
+        fragment->connect_timeout_timer = 0;
+    }
+    stream_manager_stop_active(fragment->app->stream_manager);
+    app_ui_pop_top_fragment(fragment->app->ui);
+}
+
+static Uint32 connect_timeout_callback(Uint32 interval, void *param) {
+    (void) interval;
+    session_fragment_t *fragment = (session_fragment_t *) param;
+    // The timer fired — connection took too long. Ask the main thread to clean up.
+    fragment->connect_timeout_timer = 0;
+    app_run_on_main(fragment->app, connect_timeout_main, fragment);
+    return 0; // Do not repeat.
+}
+
+static void connect_timeout_main(app_t *app, void *context) {
+    (void) app;
+    session_fragment_t *fragment = (session_fragment_t *) context;
+    // Only act if we're still in the connecting state (not already connected/disconnecting).
+    if (stream_manager_is_active(fragment->app->stream_manager)) {
+        return;
+    }
+    commons_log_warn("Session", "Connection timed out after %d ms", SESSION_CONNECT_TIMEOUT_MS);
+    stream_manager_stop_active(fragment->app->stream_manager);
+
+    static const char *btn_txts[] = {"OK", ""};
+    lv_obj_t *mbox = lv_msgbox_create(NULL, NULL, "Connection timed out.\nThe host did not respond in time.",
+                                      btn_txts, false);
+    lv_obj_add_event_cb(mbox, disconnected_dialog_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_center(mbox);
+
+    app_ui_pop_top_fragment(fragment->app->ui);
 }
 
 static void disconnected_dialog_cb(lv_event_t *e) {

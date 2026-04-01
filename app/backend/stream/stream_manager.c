@@ -303,8 +303,16 @@ static void session_connected(IHS_Session *session, void *context) {
 
 static void session_disconnected(IHS_Session *session, void *context) {
     stream_manager_t *manager = (stream_manager_t *) context;
-    assert(manager->state != STREAM_MANAGER_STATE_DISCONNECTING);
-    assert(manager->session == session);
+    // Guard against spurious/duplicate disconnect callbacks (e.g. on network drop).
+    // A hard assert here crashes the app; log and bail out instead.
+    if (manager->state == STREAM_MANAGER_STATE_DISCONNECTING) {
+        commons_log_warn("StreamManager", "session_disconnected called while already DISCONNECTING, ignoring");
+        return;
+    }
+    if (manager->session != session) {
+        commons_log_warn("StreamManager", "session_disconnected called with unknown session, ignoring");
+        return;
+    }
     if (manager->back_timer != 0) {
         SDL_RemoveTimer(manager->back_timer);
         manager->back_timer = 0;
@@ -369,8 +377,10 @@ static void destroy_session_main(app_t *app, void *context) {
     IHS_Session *session = context;
     IHS_SessionThreadedJoin(session);
     IHS_SessionDestroy(session);
-    stream_media_destroy(app->stream_manager->media);
-    app->stream_manager->media = NULL;
+    if (app->stream_manager->media != NULL) {
+        stream_media_destroy(app->stream_manager->media);
+        app->stream_manager->media = NULL;
+    }
 }
 
 static void controller_back_pressed(stream_manager_t *manager) {
@@ -406,10 +416,14 @@ static Uint32 back_timer_callback(Uint32 duration, void *param) {
     (void) duration;
     stream_manager_t *manager = (stream_manager_t *) param;
     if (manager->state != STREAM_MANAGER_STATE_STREAMING) {
+        // Session ended while the timer was running; clear state and stop.
+        manager->back_timer = 0;
+        manager->back_counter = 0;
         return 0;
     }
     manager->back_counter += 1;
     if (manager->back_counter >= BACK_COUNTER_MAX) {
+        // Mark timer as done BEFORE posting to main thread to avoid any re-entrant confusion.
         manager->back_timer = 0;
         manager->back_counter = 0;
         IHS_HIDResetSDLGameControllers(manager->session);
