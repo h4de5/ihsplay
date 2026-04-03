@@ -40,24 +40,28 @@ jobs:
       - name: Install Tools
         run: sudo apt-get install ./temp/*.deb
 
-      - name: Download webOS NDK
-        uses: robinraju/release-downloader@v1.9
-        with:
-          repository: "openlgtv/buildroot-nc4"
-          latest: true
-          fileName: "arm-webos-linux-gnueabi_sdk-buildroot.tar.gz"
-          out-file-path: "/tmp"
-
-      - name: Extract webOS NDK
+      - name: Download and Extract webOS NDK
         shell: bash
         working-directory: /tmp
         run: |
-          tar xzf arm-webos-linux-gnueabi_sdk-buildroot.tar.gz
-          ./arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh
+          # Fetch the SDK tarball URL dynamically from the latest release.
+          # This handles any future filename changes in openlgtv/buildroot-nc4.
+          SDK_URL=$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/openlgtv/buildroot-nc4/releases/latest \
+            | jq -r '.assets[] | select(.name | test("arm-webos.*sdk.*\\.tar\\.gz|\\.tar\\.gz")) | .browser_download_url' \
+            | head -1)
+          echo "Downloading NDK from: $SDK_URL"
+          curl -fsSL -o sdk.tar.gz "$SDK_URL"
+          # Find the top-level directory name inside the archive
+          SDK_DIR=$(tar tzf sdk.tar.gz | head -1 | cut -d/ -f1)
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
+          tar xzf sdk.tar.gz
+          ./$SDK_DIR/relocate-sdk.sh
 
       - name: Build
         env:
-          TOOLCHAIN_FILE: /tmp/arm-webos-linux-gnueabi_sdk-buildroot/usr/share/buildroot/toolchainfile.cmake
+          TOOLCHAIN_FILE: /tmp/${{ env.SDK_DIR }}/usr/share/buildroot/toolchainfile.cmake
         run: ./tools/webos/easy_build.sh -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
       - name: Add Commit Hash Suffix
@@ -117,6 +121,6 @@ jobs:
       - name: Build
         working-directory: ${{github.workspace}}/build
         shell: bash
-        # Execute the build.  You can specify a specific target with "--target <NAME>"
+        # Execute the build.  You can specify a specific target with "--target <n>"
         run: |
           cmake --build . --config $BUILD_TYPE
