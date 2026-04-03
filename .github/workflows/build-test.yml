@@ -44,19 +44,18 @@ jobs:
         shell: bash
         working-directory: /tmp
         run: |
-          # Fetch the SDK tarball URL dynamically from the latest release.
-          # This handles any future filename changes in openlgtv/buildroot-nc4.
+          # Select the 32-bit ARM webOS SDK (arm-webos, gnueabi, NOT aarch64/lgtv).
           SDK_URL=$(curl -fsSL \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/openlgtv/buildroot-nc4/releases/latest \
-            | jq -r '.assets[] | select(.name | test("arm-webos.*sdk.*\\.tar\\.gz|\\.tar\\.gz")) | .browser_download_url' \
+            | jq -r '.assets[] | select(.name | test("arm-webos-linux-gnueabi.*\\.tar\\.gz")) | .browser_download_url' \
             | head -1)
           echo "Downloading NDK from: $SDK_URL"
           curl -fsSL -o sdk.tar.gz "$SDK_URL"
-          # Find the top-level directory name inside the archive
-          SDK_DIR=$(tar tzf sdk.tar.gz | head -1 | cut -d/ -f1)
-          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
+          # Extract and find the top-level directory without breaking the pipe
           tar xzf sdk.tar.gz
+          SDK_DIR=$(tar tzf sdk.tar.gz 2>/dev/null | grep -m1 '/$' | cut -d/ -f1)
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
           ./$SDK_DIR/relocate-sdk.sh
 
       - name: Build
