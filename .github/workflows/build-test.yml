@@ -40,11 +40,14 @@ jobs:
       - name: Install Tools
         run: sudo apt-get install ./temp/*.deb
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          df -h
+
       - name: Download and Extract webOS NDK
         shell: bash
-        working-directory: /tmp
         run: |
-          # Select the 32-bit ARM webOS SDK (arm-webos, gnueabi, NOT aarch64/lgtv).
           SDK_URL=$(curl -fsSL \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/openlgtv/buildroot-nc4/releases/latest \
@@ -52,15 +55,15 @@ jobs:
             | head -1)
           echo "Downloading NDK from: $SDK_URL"
           curl -fsSL -o sdk.tar.gz "$SDK_URL"
-          # Extract and find the top-level directory without breaking the pipe
           tar xzf sdk.tar.gz
-          SDK_DIR=$(tar tzf sdk.tar.gz 2>/dev/null | grep -m1 '/$' | cut -d/ -f1)
+          rm sdk.tar.gz
+          SDK_DIR=$(ls -d arm-webos-linux-gnueabi_sdk-buildroot* | head -1)
           echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
           ./$SDK_DIR/relocate-sdk.sh
 
       - name: Build
         env:
-          TOOLCHAIN_FILE: /tmp/${{ env.SDK_DIR }}/usr/share/buildroot/toolchainfile.cmake
+          TOOLCHAIN_FILE: ${{ github.workspace }}/${{ env.SDK_DIR }}/usr/share/buildroot/toolchainfile.cmake
         run: ./tools/webos/easy_build.sh -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
       - name: Add Commit Hash Suffix
