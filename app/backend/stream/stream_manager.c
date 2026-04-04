@@ -143,11 +143,13 @@ IHS_Session *stream_manager_active_session(const stream_manager_t *manager) {
 }
 
 void stream_manager_stop_active(stream_manager_t *manager) {
-    if (manager->state != STREAM_MANAGER_STATE_STREAMING) {
-        return;
+    if (manager->state == STREAM_MANAGER_STATE_STREAMING) {
+        manager->requested_disconnect = true;
+        IHS_SessionDisconnect(manager->session);
+    } else if (manager->state == STREAM_MANAGER_STATE_CONNECTING) {
+        manager->requested_disconnect = true;
+        IHS_SessionDisconnect(manager->session);
     }
-    manager->requested_disconnect = true;
-    IHS_SessionDisconnect(manager->session);
 }
 
 bool stream_manager_intercept_event(const stream_manager_t *manager, const SDL_Event *event) {
@@ -316,6 +318,9 @@ static void session_disconnected(IHS_Session *session, void *context) {
     if (manager->back_timer != 0) {
         SDL_RemoveTimer(manager->back_timer);
         manager->back_timer = 0;
+    }
+    if (manager->app->settings->enable_input && manager->session != NULL) {
+        IHS_HIDResetSDLGameControllers(manager->session);
     }
     bool requested = manager->requested_disconnect;
     manager->state = STREAM_MANAGER_STATE_DISCONNECTING;
