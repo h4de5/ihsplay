@@ -38,10 +38,6 @@ jobs:
       - name: Install Tools
         run: sudo apt-get install ./temp/*.deb
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
-          df -h
 
       - name: Download webOS NDK
         uses: robinraju/release-downloader@v1.9
