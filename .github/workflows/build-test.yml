@@ -20,7 +20,7 @@ jobs:
           submodules: recursive
 
       - name: Download ares-cli-rs
-        uses: robinraju/release-downloader@v1.9
+        uses: robinraju/release-downloader@v1.11
         with:
           repository: "webosbrew/ares-cli-rs"
           latest: true
@@ -28,7 +28,7 @@ jobs:
           out-file-path: "temp"
 
       - name: Download Homebrew Toolbox
-        uses: robinraju/release-downloader@v1.9
+        uses: robinraju/release-downloader@v1.11
         with:
           repository: "webosbrew/dev-toolbox-cli"
           latest: true
@@ -38,9 +38,8 @@ jobs:
       - name: Install Tools
         run: sudo apt-get install ./temp/*.deb
 
-
       - name: Download webOS NDK
-        uses: robinraju/release-downloader@v1.9
+        uses: robinraju/release-downloader@v1.11
         with:
           repository: "openlgtv/buildroot-nc4"
           tag: "webos-b17b4cc"
@@ -71,41 +70,3 @@ jobs:
 
       - name: Compatibility Check
         run: webosbrew-ipk-verify -f markdown -d -o $GITHUB_STEP_SUMMARY dist/*.ipk
-
-  build-raspi:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Run apt-get update
-        shell: bash
-        run: sudo apt-get -y -qq update
-
-      - name: Prepare Sysroot
-        id: pi-sysroot
-        uses: mariotaku/raspbian-sysroot-action@v1.2
-        with:
-          release: bullseye
-          packages: ${{github.workspace}}/deploy/raspbian/sysroot-packages.list
-
-      - name: Install Build Tools
-        shell: bash
-        run: sudo apt-get -y -qq install crossbuild-essential-armhf cmake
-
-      - name: Create Build Environment
-        run: cmake -E make_directory ${{github.workspace}}/build
-
-      - name: Configure CMake
-        shell: bash
-        working-directory: ${{github.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DTARGET_RASPI=ON
-          -DCMAKE_TOOLCHAIN_FILE=${{steps.pi-sysroot.outputs.cmake-toolchain}}
-
-      - name: Build
-        working-directory: ${{github.workspace}}/build
-        shell: bash
-        run: |
-          cmake --build . --config $BUILD_TYPE
