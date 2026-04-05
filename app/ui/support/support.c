@@ -2,6 +2,7 @@
 #include "wiki.h"
 #include "feedback.h"
 #include "app.h"
+#include "config.h"
 #include "lvgl/theme.h"
 #include "ui/app_ui.h"
 
@@ -67,6 +68,11 @@ static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *parent) {
 
     add_btn(fragment, fragment->win_content, "Get Help", &wiki_fragment_class);
     add_btn(fragment, fragment->win_content, "Feedback", &feedback_fragment_class);
+
+    lv_obj_t *ver_label = lv_label_create(fragment->win_content);
+    lv_label_set_text_fmt(ver_label, "Version: %s", IHSPLAY_VERSION_STRING);
+    lv_obj_set_grid_cell(ver_label, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_END, 2, 1);
+    lv_obj_set_style_text_opa(ver_label, LV_OPA_50, 0);
 
     return win;
 }
