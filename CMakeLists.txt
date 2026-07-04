@@ -11,6 +11,8 @@ endif ()
 
 project(ihsplay VERSION ${IHSPLAY_VERSION} LANGUAGES C)
 
+string(TIMESTAMP IHSPLAY_BUILD_DATE UTC)
+
 # To suppress warnings for MbedTLS
 if (POLICY CMP0048)
     cmake_policy(SET CMP0048 NEW)

@@ -70,7 +70,7 @@ static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *parent) {
     add_btn(fragment, fragment->win_content, "Feedback", &feedback_fragment_class);
 
     lv_obj_t *ver_label = lv_label_create(fragment->win_content);
-    lv_label_set_text_fmt(ver_label, "Version: %s", IHSPLAY_VERSION_STRING);
+    lv_label_set_text_fmt(ver_label, "Version: %s\nBuilt: %s", IHSPLAY_VERSION_STRING, IHSPLAY_BUILD_DATE_STRING);
     lv_obj_set_grid_cell(ver_label, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_END, 2, 1);
     lv_obj_set_style_text_opa(ver_label, LV_OPA_50, 0);
 

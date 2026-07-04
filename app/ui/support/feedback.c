@@ -40,13 +40,14 @@ static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *parent) {
     lv_obj_set_style_bg_color(qrcode, lv_color_white(), 0);
 
     static const char *info_fmt = "Version: %s\n"
+                                  "Built: %s\n"
                                   "Audio Module: %s\n"
                                   "Video Module: %s\n"
                                   "System: %s\n";
     lv_obj_t *info_label = lv_label_create(content);
     char *os_str = os_info_str(&app->os_info);
-    lv_label_set_text_fmt(info_label, info_fmt, IHSPLAY_VERSION_STRING, SS4S_GetAudioModuleName(),
-                          SS4S_GetVideoModuleName(), os_str);
+    lv_label_set_text_fmt(info_label, info_fmt, IHSPLAY_VERSION_STRING, IHSPLAY_BUILD_DATE_STRING,
+                          SS4S_GetAudioModuleName(), SS4S_GetVideoModuleName(), os_str);
     if (os_str != NULL) {
         free(os_str);
     }

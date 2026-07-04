@@ -195,6 +195,11 @@ static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *container) {
     lv_obj_set_dir_focus_obj(gamepads, LV_DIR_LEFT, btn_play);
     lv_obj_set_dir_focus_obj(gamepads, LV_DIR_TOP, selected_host);
 
+    lv_obj_t *build_label = lv_label_create(nav_content);
+    lv_label_set_text_fmt(build_label, "%s", IHSPLAY_BUILD_DATE_STRING);
+    lv_obj_set_grid_cell(build_label, LV_GRID_ALIGN_END, 1, 1, LV_GRID_ALIGN_END, 3, 1);
+    lv_obj_set_style_text_opa(build_label, LV_OPA_30, 0);
+
     return win;
 }
 
