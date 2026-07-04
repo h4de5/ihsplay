@@ -88,3 +88,9 @@ CTestTestfile.cmake
 _deps
 build/
 dist/
+
+# Patch files (reference only, changes are in commit history)
+*.patch
+
+# Built packages
+*.ipk
