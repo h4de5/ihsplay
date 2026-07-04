@@ -68,5 +68,16 @@ jobs:
           name: webos-snapshot
           path: dist/*.ipk
 
+      - name: Upload to Nightly Release
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          omitNameDuringUpdate: true
+          omitBodyDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          tag: nightly
+          artifacts: dist/*.ipk
+
       - name: Compatibility Check
         run: webosbrew-ipk-verify -f markdown -d -o $GITHUB_STEP_SUMMARY dist/*.ipk
