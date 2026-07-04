@@ -5,6 +5,7 @@
 #include "config.h"
 #include "lvgl/theme.h"
 #include "ui/app_ui.h"
+#include "ihslib/session.h"
 
 typedef struct support_fragment_t {
     lv_fragment_t base;
@@ -69,8 +70,15 @@ static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *parent) {
     add_btn(fragment, fragment->win_content, "Get Help", &wiki_fragment_class);
     add_btn(fragment, fragment->win_content, "Feedback", &feedback_fragment_class);
 
+    uint32_t input_disable_count = 0, input_disable_last_ms = 0;
+    bool input_currently_disabled = false;
+    IHS_SessionGetInputStreamingDiagnostics(&input_disable_count, &input_disable_last_ms, &input_currently_disabled);
+
     lv_obj_t *ver_label = lv_label_create(fragment->win_content);
-    lv_label_set_text_fmt(ver_label, "Version: %s\nBuilt: %s", IHSPLAY_VERSION_STRING, IHSPLAY_BUILD_DATE_STRING);
+    lv_label_set_text_fmt(ver_label, "Version: %s\nBuilt: %s\nInput disabled by server: %ux (last: %ums)%s",
+                          IHSPLAY_VERSION_STRING, IHSPLAY_BUILD_DATE_STRING,
+                          (unsigned) input_disable_count, (unsigned) input_disable_last_ms,
+                          input_currently_disabled ? " [CURRENTLY DISABLED]" : "");
     lv_obj_set_grid_cell(ver_label, LV_GRID_ALIGN_START, 0, 2, LV_GRID_ALIGN_END, 2, 1);
     lv_obj_set_style_text_opa(ver_label, LV_OPA_50, 0);
 

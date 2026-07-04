@@ -83,4 +83,49 @@ Zwei unabhängige Maßnahmen, die sich ergänzen:
 
 **Warum 30 Hz ausreichen:** Die meisten Spiele laufen mit ≤60 fps und erfassen Eingaben mit ≤60 Hz. 30 Hz HID-Update-Rate liegt über der menschlichen Wahrnehmungsschwelle für Eingabeverzögerung und entspricht dem Polling-Intervall vieler Bluetooth-Controller.
 
+**Ergebnis:** Problem besteht weiterhin unverändert (User-Feedback nach Deploy).
+
+### Fix-Versuch 2: `SO_SNDBUF` auf 512KB erhöht (Commit `5ef33b2`)
+
+Hypothese: Kernel-Sendbuffer (default ~208KB) läuft bei WiFi-Congestion voll, `sendto()` läuft in den `SO_SNDTIMEO` und droppt alle Pakete (Video, Audio, HID) still, bis der Buffer wieder Platz hat.
+
+**Ergebnis:** Problem besteht weiterhin unverändert. Das spricht **gegen** die Theorie "Kernel-Sendbuffer voll" als alleinige Ursache.
+
+## Neue Hypothese: Server deaktiviert Input-Streaming (unbestätigt)
+
+`ch_control.c` implementiert `OnSetClientConfig()`, das auf die Server-Nachricht `CSetStreamingClientConfig` reagiert (mirrored von Steams `BStreamingInput`/`BStreamingAudio`/`BStreamingVideo`). Wenn der Server `enable_input_streaming=false` sendet, setzt der Client `session->state.streamingInput = false`. Das ist die **einzige** Stelle im Code, die dieses Flag außerhalb der Initialisierung (`true` bei Session-Start) verändert – rein Server-getrieben, kein Client-Bug.
+
+Wirkung, wenn `streamingInput == false`:
+- `IHS_HIDManager`s Poll-Tick pollt Devices weiterhin (State bleibt aktuell), aber `IHS_SessionHIDSendReport()` returned sofort ohne zu senden (`control_hid.c:214`)
+- `IHS_SessionChannelControlSendHIDMsg()` verwirft die Nachricht komplett, noch bevor sie gepackt wird (`control_hid.c:140`)
+- Maus/Tastatur (`control_input_mouse.c`, `control_input_kbd.c`, `control_input_touch.c`) sind **genauso** betroffen
+
+**Warum das zum Symptom passt:**
+- Kompletter Stillstand aller Eingaben (nicht nur Controller) für die Dauer der Deaktivierung
+- "Letzter Input bleibt hängen": Wenn z.B. der Stick nach links gehalten wird und der Server in diesem Moment Input deaktiviert, kommt die spätere "losgelassen"-Meldung nie beim Server an → Server-seitiger virtueller Controller bleibt im letzten übermittelten Zustand hängen, bis Input reaktiviert wird und der Client den aktuellen Zustand nachliefert
+- Erklärt "erholt sich von selbst" – ein serverseitiger Zustand/Timer
+- Erklärt auch, warum beide bisherigen Netzwerk-Fixes (SO_SNDBUF, Poll-Rate) wirkungslos blieben – das Problem liegt oberhalb der UDP-Transportebene, auf Protokoll-/Anwendungsebene
+
+**Unbestätigt, weil:**
+- Kein Log-Beweis, dass dies tatsächlich passiert
+- Unklar, warum der Server das für genau 20-30s täte (müsste per Ghidra-RE des Steam-Binaries geklärt werden, siehe `core/CLAUDE.md`)
+- Könnte auch etwas völlig anderes sein
+
+### Diagnose-Maßnahme (Commit `<TBD>`, kein Fix – nur Messung)
+
+Da Live-Logs vom TV nicht praktikabel abrufbar sind (kein einfaches `ares-log` für native Apps, SSH-Zugriff nicht dokumentiert/verifiziert), wird die Diagnose **direkt in der App** sichtbar gemacht:
+
+- `ch_control.c`: Neue Zähler `g_inputDisableCount`, `g_lastInputDisableDurationMs`, `g_inputDisabledSinceMs` (Prozess-lebenszeit-statics, überleben Session-Ende)
+- Bei jedem `streamingInput`-Wechsel true→false wird die Startzeit gemerkt und der Zähler erhöht; bei false→true wird die Dauer berechnet
+- Neue öffentliche API `IHS_SessionGetInputStreamingDiagnostics()` in `include/ihslib/session.h`
+- Support-Screen (`app/ui/support/support.c`) zeigt jetzt: `Input disabled by server: Nx (last: Xms)` [+ `[CURRENTLY DISABLED]` falls gerade aktiv]
+
+**Test-Anleitung für den User:**
+1. Build installieren, streamen bis der Freeze auftritt
+2. Entweder 20-30s warten bis es sich von selbst löst, oder per langem Select-Druck aussteigen
+3. Zurück im IHSplay-Launcher → Support-Screen öffnen
+4. Prüfen ob `Input disabled by server: 1x` (oder mehr) angezeigt wird
+   - **Wenn ja:** Hypothese bestätigt, Server deaktiviert Input – nächster Schritt ist Ghidra-RE warum
+   - **Wenn `0x`:** Hypothese widerlegt, Ursache liegt woanders (z.B. lokale Eingabeverarbeitung, Verschlüsselung/Sequenznummern, etc.)
+
 Siehe `docs/build-pipeline.md` für Build + Deploy.
