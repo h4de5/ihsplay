@@ -68,20 +68,17 @@ jobs:
           name: webos-snapshot
           path: dist/*.ipk
 
-      - name: Delete old Nightly Release
-        run: |
-          gh release delete nightly --yes -R ${{ github.repository }} 2>/dev/null || true
-          gh api -X DELETE repos/${{ github.repository }}/git/refs/tags/nightly 2>/dev/null || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute short SHA
+        id: vars
+        run: echo "sha_short=${GITHUB_SHA:0:8}" >> $GITHUB_OUTPUT
 
-      - name: Upload to Nightly Release
+      - name: Create Release
         uses: ncipollo/release-action@v1.14.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: nightly
-          name: "Nightly Build"
-          body: "Automatischer Build von ${{ github.sha }}"
+          tag: build-${{ steps.vars.outputs.sha_short }}
+          name: "Build ${{ steps.vars.outputs.sha_short }}"
+          body: "Automatischer Build von ${{ github.ref_name }}@${{ github.sha }}"
           artifacts: dist/*.ipk
 
       - name: Compatibility Check
