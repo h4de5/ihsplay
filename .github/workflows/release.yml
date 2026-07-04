@@ -21,10 +21,18 @@ jobs:
         with:
           repository: "webosbrew/ares-cli-rs"
           latest: true
-          fileName: "ares-package_*.deb"
+          fileName: "ares-package_*_amd64.deb"
           out-file-path: "temp"
 
       - name: Download Homebrew Toolbox
+        uses: robinraju/release-downloader@v1.11
+        with:
+          repository: "webosbrew/dev-toolbox-cli"
+          latest: true
+          fileName: "webosbrew-toolbox-ipk-verify_*.deb"
+          out-file-path: "temp"
+
+      - name: Download Homebrew Manifest Tool
         uses: robinraju/release-downloader@v1.11
         with:
           repository: "webosbrew/dev-toolbox-cli"
