@@ -321,6 +321,7 @@ static void session_disconnected(IHS_Session *session, void *context) {
     }
     if (manager->app->settings->enable_input && manager->session != NULL) {
         IHS_HIDResetSDLGameControllers(manager->session);
+        IHS_SessionHIDRemoveProvider(manager->session, input_manager_get_hid_provider(manager->app->input_manager));
     }
     bool requested = manager->requested_disconnect;
     manager->state = STREAM_MANAGER_STATE_DISCONNECTING;
