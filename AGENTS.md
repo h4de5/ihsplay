@@ -182,4 +182,4 @@ Im Projekt-Root liegt `git-wrapper` – ein Bash-Skript, das `git commit|pull|pu
 - Der git-wrapper darf **nie** implizit, aus Versehen, aus Gewohnheit oder ohne vorherige Frage ausgeführt werden.
 - Jeder Aufruf zählt als destruktive Git-Operation und unterliegt denselben Regeln wie direkte `git commit/push/merge/pull`-Aufrufe.
 
-**Unterstützte Befehle:** `add`, `rm`, `commit`, `push`, `merge`, `pull`
+**Unterstützte Befehle:** `add`, `rm`, `reset`, `commit`, `push`, `merge`, `pull`

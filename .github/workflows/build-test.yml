@@ -20,7 +20,7 @@ jobs:
           submodules: recursive
 
       - name: Download ares-cli-rs
-        uses: robinraju/release-downloader@v1.11
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: "webosbrew/ares-cli-rs"
           latest: true
@@ -28,7 +28,7 @@ jobs:
           out-file-path: "temp"
 
       - name: Download Homebrew Toolbox
-        uses: robinraju/release-downloader@v1.11
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: "webosbrew/dev-toolbox-cli"
           latest: true
@@ -39,7 +39,7 @@ jobs:
         run: sudo apt-get install ./temp/*.deb
 
       - name: Download webOS NDK
-        uses: robinraju/release-downloader@v1.11
+        uses: robinraju/release-downloader@v1.13
         with:
           repository: "openlgtv/buildroot-nc4"
           tag: "webos-b17b4cc"
