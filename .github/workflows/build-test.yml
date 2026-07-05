@@ -80,6 +80,7 @@ jobs:
           name: "Build ${{ steps.vars.outputs.sha_short }}"
           body: "Automatischer Build von ${{ github.ref_name }}@${{ github.sha }}"
           artifacts: dist/*.ipk
+          makeLatest: true
 
       - name: Compatibility Check
         run: webosbrew-ipk-verify -f markdown -d -o $GITHUB_STEP_SUMMARY dist/*.ipk
